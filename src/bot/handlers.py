@@ -23,7 +23,7 @@ from config import APP_CONF
 @dp.message(Command("start"))
 async def start_cmd_message(message: types.Message, state: FSMContext):
     name = message.from_user.full_name
-    await message.answer(f"Приветствуем в боте, {name}", reply_markup=main_menu_ikbd)
+    await message.answer(f"Приветствуем в боте, {name}!", reply_markup=main_menu_ikbd)
     await state.clear()
 
 
