@@ -80,7 +80,6 @@ async def dop_plan_menu_cb_handler(callback: types.CallbackQuery, state: FSMCont
 async def dop_plan_menu_msg_handler(message: types.Message, state: FSMContext):
     await message.answer("Выберите:", reply_markup=get_dop_plans_menu_ikbd())
     await state.set_state(UserForm.choice)
-    await message.answer()
     await message.delete()
 
 
