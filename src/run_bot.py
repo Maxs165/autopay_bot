@@ -25,8 +25,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
-
-# for p in CRUDProduct().get_all():
-#     print(p.name, p.description)
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Остановлено вручную")

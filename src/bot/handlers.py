@@ -1,21 +1,22 @@
+from bot import notifies
 from bot.main import dp
 from aiogram import types, F
 from bot.keyboards import (
     main_menu_ikbd,
+    main_menu_kbd,
     servise_menu_ikbd,
-    plans_menu_ikbd,
-    dop_plans_menu_ikbd,
+    get_plans_menu_ikbd,
+    get_dop_plans_menu_ikbd,
     select_plans_menu_ikbd,
-    # choice_menu_ikbd,
+    choice_menu_ikbd,
 )
 
-# from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.enums import ContentType
 from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from bot.states import UserForm
 
-from database.crud import CRUDUser, CRUDProgram
+from database.crud import CRUDUser, CRUDProgram, CRUDUserProgram
 
 from config import APP_CONF
 
@@ -30,6 +31,7 @@ async def start_cmd_message(message: types.Message, state: FSMContext):
 @dp.callback_query(F.data == "rega")
 async def main_menu_cb_handler(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Введите полное имя:")
+    await callback.answer()
     await state.set_state(UserForm.name)
 
 
@@ -53,29 +55,33 @@ async def number_handler(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-#  сюда вогнать выбор действия
-# @dp.callback_query(F.data == "")
-
-
-@dp.message(Command("plans"))
-async def servise_menu_msg_handler(message: types.Message, state: FSMContext):
-    await message.answer("Выберите:", reply_markup=plans_menu_ikbd)
-    await state.set_state(UserForm.num)  # Временный хэнд
+# @dp.message(Command("plans"))
+# async def servise_menu_msg_handler(message: types.Message, state: FSMContext):
+#     await message.answer("Выберите:", reply_markup=get_plans_menu_ikbd())
+#     await state.set_state(UserForm.choice)  # Временный хэнд
 
 
 @dp.callback_query(F.data == "plan")
 async def servise_menu_cb_handler(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("Выберите:", reply_markup=plans_menu_ikbd)
-    await state.set_state(UserForm.num)
+    await callback.message.answer("Выберите:", reply_markup=get_plans_menu_ikbd())
+    await state.set_state(UserForm.choice)
     await callback.answer()
 
 
 @dp.callback_query(F.data == "dop_plan")
 async def dop_plan_menu_cb_handler(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("Выберите:", reply_markup=dop_plans_menu_ikbd)
-    await state.set_state(UserForm.num)
+    await callback.message.answer("Выберите:", reply_markup=get_dop_plans_menu_ikbd())
+    await state.set_state(UserForm.choice)
     await callback.answer()
     await callback.message.delete()
+
+
+@dp.message(F.text == "Выбрать дополнительные планы обучения")
+async def dop_plan_menu_msg_handler(message: types.Message, state: FSMContext):
+    await message.answer("Выберите:", reply_markup=get_dop_plans_menu_ikbd())
+    await state.set_state(UserForm.choice)
+    await message.answer()
+    await message.delete()
 
 
 @dp.callback_query(F.data == "nazad")
@@ -85,19 +91,25 @@ async def otmena_dop_cb_handler(callback: types.CallbackQuery, state: FSMContext
     await state.clear()
 
 
-# @dp.callback_query(UserForm.num)
-# async def choice_cb_handler(callback: types.CallbackQuery, state: FSMContext):
-#     await callback.message.edit_text("Выберите:")
-#     await callback.message.edit_reply_markup(reply_markup=choice_menu_ikbd)
-#     await callback.message.delete()
-# F.data == "month"
+@dp.callback_query(UserForm.choice)
+async def choice_cb_handler(callback: types.CallbackQuery, state: FSMContext):
+    program = CRUDProgram.get_program(int(callback.data))
+    await state.clear()
+    await state.update_data(num=callback.data)
+    if program.has_subscription:
+        await callback.message.edit_text("Выберите:")
+        await callback.message.edit_reply_markup(reply_markup=choice_menu_ikbd)
+    else:
+        await num_all_pay_cb_handler(callback=callback, state=state)
 
 
 # 1111 1111 1111 1026, 12/22, CVC 000
-@dp.callback_query(UserForm.num)
-async def num_menu_cb_handler(callback: types.CallbackQuery, state: FSMContext):
-    type_program = CRUDProgram.get_program(callback.data)  # было (num = callback.data)
+@dp.callback_query(F.data == "month")
+async def num_pay_cb_handler(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    type_program = CRUDProgram.get_program(num=data["num"])
     type_program_num = str(type_program.num)
+    await callback.message.delete()
     await callback.message.answer_invoice(
         title=type_program.title,
         description=type_program.description,
@@ -105,7 +117,27 @@ async def num_menu_cb_handler(callback: types.CallbackQuery, state: FSMContext):
         currency="rub",
         is_flexible=False,
         prices=[types.LabeledPrice(label="Оплатить", amount=type_program.price)],
-        payload=type_program_num,
+        payload=f"{type_program_num};true",
+    )
+
+    await state.clear()
+
+
+@dp.callback_query(F.data == "all_pay")
+async def num_all_pay_cb_handler(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    type_program = CRUDProgram.get_program(num=data["num"])
+    type_program_num = str(type_program.num)
+    await callback.message.answer_invoice(
+        title=type_program.title,
+        description=type_program.description,
+        provider_token=APP_CONF.PAYMENTS_TOKEN,
+        currency="rub",
+        is_flexible=False,
+        prices=[
+            types.LabeledPrice(label="Оплатить", amount=type_program.price * type_program.month)
+        ],
+        payload=f"{type_program_num};false",
     )
 
     await state.clear()
@@ -118,48 +150,40 @@ async def pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
 
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
 async def successful_payment_handler(message: types.Message):
-    CRUDUser.add_day(message.from_user.id, 30)
-    CRUDUser.add_prog(message.from_user.id, message.successful_payment.invoice_payload)
-    await message.answer(
-        f"Оплата прошла успешно! {message.successful_payment.invoice_payload}.",
-        reply_markup=select_plans_menu_ikbd,
-    )
+    data = message.successful_payment.invoice_payload.split(";")
+    program_num = int(data[0])
+    is_sub = data[1] == "true"
+    if CRUDUserProgram.check_and_minus_month(message.from_user.id, program_num):
+        await message.answer("Оплата прошла успешно!")
+    else:
+        CRUDUserProgram.add_prog(message.from_user.id, program_num, is_sub)
+        await message.answer(
+            "Оплата прошла успешно!",
+            reply_markup=select_plans_menu_ikbd,
+        )
+        if is_sub:
+            await notifies.send_to_sveta(
+                text=(
+                    f"{CRUDUser.get_name(message.from_user.id)} - оформлена подписка - "
+                    f"{CRUDProgram.get_program(program_num).title}"
+                ),
+            )
+        else:
+            await notifies.send_to_sveta(
+                text=(
+                    f"{CRUDUser.get_name(message.from_user.id)} - оплачен весь курс - "
+                    f"{CRUDProgram.get_program(program_num).title}"
+                ),
+            )
 
 
 @dp.callback_query(F.data == "quit")
 async def quit_cb_handler(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer("Желаем удачного обучения, ждем Вас на занятиях!")
+    await callback.message.answer(
+        "Желаем удачного обучения, ждем Вас на занятиях!", reply_markup=main_menu_kbd
+    )
     await callback.message.delete()
-
-
-# @dp.callback_query(F.data == "yes")
-# async def pay_cb_handler(callback: types.CallbackQuery, state: FSMContext):
-#     CRUDUser.add_day(tguid=callback.from_user.id, day=int(30))
-#     await callback.message.answer(
-#         f"Оплачено, осталось {CRUDUser.get_day(tguid=callback.from_user.id)} дней"
-#     )
-#     await state.clear()
-
-
-# # buy
-# if PAYMENTS_TOKEN.split(":")[1] == "TEST":
-#     await bot.send_message(message.chat.id, "Тестовый платеж!!!")
-
-# await bot.send_invoice(
-#     message.chat.id,
-#     title="Подписка на бота",
-#     description="Активация подписки на бота на 1 месяц",
-#     provider_token=config.PAYMENTS_TOKEN,
-#     currency="rub",
-#     photo_url="https://www.aroged.com/wp-content/uploads/2022/06/Telegram-has-a-premium-subscription.jpg",
-#     photo_width=416,
-#     photo_height=234,
-#     photo_size=416,
-#     is_flexible=False,
-#     prices=[PRICE],
-#     start_parameter="one-month-subscription",
-#     payload="test-invoice-payload",
-# )
+    await state.clear()
 
 
 # @dp.message()

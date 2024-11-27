@@ -1,25 +1,22 @@
-from typing import List
+from datetime import date
+from typing import List, Optional
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKey
-from sqlalchemy import Table
-from sqlalchemy import Integer
-from sqlalchemy import Column
 from sqlalchemy.orm import relationship
 
 from database.base import Base
 
 
-# from sqlalchemy.orm import relationship
-# from typing import List
-
-user_program = Table(
-    "user_program",
-    Base.metadata,
-    Column("user_tguid", ForeignKey("user.tguid")),
-    Column("program_num", ForeignKey("program.num")),
-)
+class UserProgram(Base):
+    __tablename__ = "user_program"
+    user_tguid: Mapped[int] = mapped_column(ForeignKey("user.tguid"), primary_key=True)
+    program_num: Mapped[int] = mapped_column(ForeignKey("program.num"), primary_key=True)
+    expire_date: Mapped[Optional[date]]
+    is_sub: Mapped[Optional[bool]]
+    months_left: Mapped[Optional[int]]
+    program: Mapped["Program"] = relationship()
 
 
 class User(Base):
@@ -28,8 +25,7 @@ class User(Base):
     tguid: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     number: Mapped[str]
     name: Mapped[str]
-    day: Mapped[int] = mapped_column(Integer, nullable=True)
-    programs: Mapped[List["Program"]] = relationship(secondary=user_program)
+    programs: Mapped[List["UserProgram"]] = relationship()
 
 
 class Program(Base):
@@ -40,11 +36,4 @@ class Program(Base):
     description: Mapped[str]
     price: Mapped[int]
     month: Mapped[int]
-
-
-# class UserProgram(Base):
-#     __tablename__ = "user_program"
-
-#     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-#     user_tguid: Mapped[int] = mapped_column(BigInteger)
-#     program_num: Mapped[int] = mapped_column(Integer)
+    has_subscription: Mapped[bool]

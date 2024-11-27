@@ -5,3 +5,4 @@ class UserForm(StatesGroup):
     name = State()
     number = State()
     num = State()
+    choice = State()

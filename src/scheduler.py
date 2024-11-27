@@ -1,30 +1,39 @@
-from apscheduler.schedulers.background import BackgroundScheduler
-from database.crud import CRUDUser
+from datetime import date
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # BackgroundScheduler
+from database.crud import CRUDUserProgram, CRUDProgram, CRUDUser
 
 from bot import notifies
 from time import sleep
 
 
-def decrease_subscription_days_job():
-    CRUDUser.all_minus_day()
-
-
-def notify_users_subscription():
-    users = CRUDUser.get_all()
+async def notify_users_subscription():
+    users = CRUDUserProgram.get_all()
     for u in users:
-        if u.day == 2:
-            notifies.send_notify(u.tguid, notifies.two_days_left_notify)
-        if u.day == 1:
-            notifies.send_notify(u.tguid, notifies.one_day_left_notify)
-        if u.day == 0:
-            notifies.send_notify(u.tguid, notifies.expire_notify)
-        sleep(0.1)
+        if u.is_sub and u.months_left > 0:
+            delta = u.expire_date - date.today()
+            day = delta.days
+            if day == 2:
+                await notifies.send_notify(
+                    u.user_tguid, notifies.two_days_left_notify, num=u.program_num
+                )
+            if day == 1:
+                await notifies.send_notify(
+                    u.user_tguid, notifies.one_day_left_notify, num=u.program_num
+                )
+            if day == 0:
+                await notifies.send_notify(u.user_tguid, notifies.expire_notify, num=u.program_num)
+                await notifies.send_to_sveta(
+                    text=(
+                        f"{CRUDUser.get_name(u.user_tguid)} - просрочена оплата подписки на курс -"
+                        f" {CRUDProgram.get_program(u.program_num).title}"
+                    ),
+                )
+            sleep(0.1)
 
 
 def schedule_jobs():
     scheduler.start()
-    scheduler.add_job(decrease_subscription_days_job, "cron", hour=0, minute=0)
-    scheduler.add_job(notify_users_subscription, "cron", hour=15, minute=0)
+    scheduler.add_job(notify_users_subscription, "cron", hour=2, minute=45)
 
 
-scheduler = BackgroundScheduler()
+scheduler = AsyncIOScheduler()  # BackgroundScheduler()

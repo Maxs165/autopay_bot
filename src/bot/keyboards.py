@@ -1,8 +1,10 @@
 from aiogram.types import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
 )
-
+from database.crud import CRUDProgram
 
 main_menu_ikbd = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -23,26 +25,28 @@ choice_menu_ikbd = InlineKeyboardMarkup(
     ]
 )
 
-plans_menu_ikbd = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Взрослое направление", callback_data="1")],
-        [InlineKeyboardButton(text="Детское направление", callback_data="2")],
-        [InlineKeyboardButton(text="Курс обучения моделей PLUS SIZE", callback_data="3")],
-        [InlineKeyboardButton(text="Киноактерская группа", callback_data="4")],
-        [InlineKeyboardButton(text="Агентский взнос", callback_data="5")],
-    ]
-)
 
-dop_plans_menu_ikbd = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Взрослое направление", callback_data="1")],
-        [InlineKeyboardButton(text="Детское направление", callback_data="2")],
-        [InlineKeyboardButton(text="Курс обучения моделей PLUS SIZE", callback_data="3")],
-        [InlineKeyboardButton(text="Киноактерская группа", callback_data="4")],
-        [InlineKeyboardButton(text="Агентский взнос", callback_data="5")],
-        [InlineKeyboardButton(text="Назад", callback_data="nazad")],
-    ]
-)
+def get_plans_menu_ikbd():
+    programs = CRUDProgram.get_all()
+    inline_keyboard = list()
+    for program in programs:
+        inline_keyboard.append(
+            [InlineKeyboardButton(text=program.title, callback_data=str(program.num))]
+        )
+    plans_menu_ikbd = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+    return plans_menu_ikbd
+
+
+def get_dop_plans_menu_ikbd():
+    programs = CRUDProgram.get_all()
+    inline_keyboard = list()
+    for program in programs:
+        inline_keyboard.append(
+            [InlineKeyboardButton(text=program.title, callback_data=str(program.num))]
+        )
+    inline_keyboard.append([InlineKeyboardButton(text="Назад", callback_data="nazad")])
+    dop_plans_menu_ikbd = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+    return dop_plans_menu_ikbd
 
 
 select_plans_menu_ikbd = InlineKeyboardMarkup(
@@ -52,8 +56,9 @@ select_plans_menu_ikbd = InlineKeyboardMarkup(
     ]
 )
 
-pay_menu_ikbd = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Да", callback_data="yes")],
-    ]
+main_menu_kbd = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="Выбрать дополнительные планы обучения")],
+    ],
+    resize_keyboard=True,
 )
