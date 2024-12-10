@@ -153,6 +153,7 @@ async def successful_payment_handler(message: types.Message):
     program_num = int(data[0])
     is_sub = data[1] == "true"
     if CRUDUserProgram.check_and_minus_month(message.from_user.id, program_num):
+        #  expire date что истекла уведомление о том что возобновлена
         await message.answer("Оплата прошла успешно!")
     else:
         CRUDUserProgram.add_prog(message.from_user.id, program_num, is_sub)
