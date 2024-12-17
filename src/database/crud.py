@@ -90,3 +90,14 @@ class CRUDUserProgram:
                 user_program.months_left -= 1
                 sess.commit()
                 return True
+
+    @staticmethod
+    def check_date(tguid: int, num: int):
+        with db_session() as sess:
+            user_program = sess.scalars(
+                select(UserProgram).where(
+                    UserProgram.user_tguid == tguid, UserProgram.program_num == num
+                )
+            ).first()
+            if user_program.expire_date - date.today() <= 0:
+                return True

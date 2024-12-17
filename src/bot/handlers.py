@@ -64,14 +64,12 @@ async def number_handler(message: types.Message, state: FSMContext):
 @dp.callback_query(F.data == "plan")
 async def servise_menu_cb_handler(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Выберите:", reply_markup=get_plans_menu_ikbd())
-    await state.set_state(UserForm.choice)
     await callback.answer()
 
 
 @dp.callback_query(F.data == "dop_plan")
 async def dop_plan_menu_cb_handler(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Выберите:", reply_markup=get_dop_plans_menu_ikbd())
-    await state.set_state(UserForm.choice)
     await callback.answer()
     await callback.message.delete()
 
@@ -79,7 +77,6 @@ async def dop_plan_menu_cb_handler(callback: types.CallbackQuery, state: FSMCont
 @dp.message(F.text == "Выбрать дополнительные планы обучения")
 async def dop_plan_menu_msg_handler(message: types.Message, state: FSMContext):
     await message.answer("Выберите:", reply_markup=get_dop_plans_menu_ikbd())
-    await state.set_state(UserForm.choice)
     await message.delete()
 
 
@@ -90,10 +87,13 @@ async def otmena_dop_cb_handler(callback: types.CallbackQuery, state: FSMContext
     await state.clear()
 
 
-@dp.callback_query(UserForm.choice)
+@dp.callback_query(F.data == "1")
+@dp.callback_query(F.data == "2")
+@dp.callback_query(F.data == "3")
+@dp.callback_query(F.data == "4")
+@dp.callback_query(F.data == "5")
 async def choice_cb_handler(callback: types.CallbackQuery, state: FSMContext):
     program = CRUDProgram.get_program(int(callback.data))
-    await state.clear()
     await state.update_data(num=callback.data)
     if program.has_subscription:
         await callback.message.edit_text("Выберите:")
@@ -155,6 +155,13 @@ async def successful_payment_handler(message: types.Message):
     if CRUDUserProgram.check_and_minus_month(message.from_user.id, program_num):
         #  expire date что истекла уведомление о том что возобновлена
         await message.answer("Оплата прошла успешно!")
+        if CRUDUserProgram.check_date:
+            await notifies.send_to_sveta(
+                text=(
+                    f"{CRUDUser.get_name(message.from_user.id)} - подписка возобновлена - "
+                    f"{CRUDProgram.get_program(program_num).title}"
+                ),
+            )
     else:
         CRUDUserProgram.add_prog(message.from_user.id, program_num, is_sub)
         await message.answer(
